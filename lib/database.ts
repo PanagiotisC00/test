@@ -11,32 +11,59 @@ export const prisma = globalForPrisma.prisma || new PrismaClient()
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Supabase client instances
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Client-side Supabase client (for browser use)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      storage: {
+        getItem: (key) => {
+          if (typeof window === 'undefined') return null
+          return window.localStorage.getItem(key)
+        },
+        setItem: (key, value) => {
+          if (typeof window === 'undefined') return
+          window.localStorage.setItem(key, value)
+        },
+        removeItem: (key) => {
+          if (typeof window === 'undefined') return
+          window.localStorage.removeItem(key)
+        },
+      },
+    }
+  }
+)
 
 // Server-side Supabase client (for server actions)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+export const supabaseAdmin = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseServiceKey || 'placeholder-service-key',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   }
-})
+)
 
 // Database utility functions
 export async function getPostsWithAuthors() {
   return await prisma.post.findMany({
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      published: true,
+      authorId: true,
+      authorEmail: true,
+      createdAt: true,
+      updatedAt: true,
     },
     orderBy: {
       createdAt: 'desc',
@@ -49,13 +76,14 @@ export async function getPublishedPosts() {
     where: {
       published: true,
     },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      authorId: true,
+      authorEmail: true,
+      createdAt: true,
+      updatedAt: true,
     },
     orderBy: {
       createdAt: 'desc',
@@ -63,28 +91,23 @@ export async function getPublishedPosts() {
   })
 }
 
-export async function getUserById(id: number) {
-  return await prisma.user.findUnique({
-    where: { id },
-    include: {
-      posts: {
-        orderBy: {
-          createdAt: 'desc',
-        },
-      },
+export async function getPostsByUser(authorId: string) {
+  return await prisma.post.findMany({
+    where: {
+      authorId: authorId,
     },
-  })
-}
-
-export async function getUserByEmail(email: string) {
-  return await prisma.user.findUnique({
-    where: { email },
-    include: {
-      posts: {
-        orderBy: {
-          createdAt: 'desc',
-        },
-      },
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      published: true,
+      authorId: true,
+      authorEmail: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
     },
   })
 }

@@ -1,16 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CalendarDays, User } from "lucide-react"
-import prisma from "@/lib/prisma"
+import { getPublishedPosts } from "@/lib/database"
 
 export default async function BlogsPage() {
-  const posts = await prisma.post.findMany({
-    where: { published: true },
-    orderBy: { createdAt: "desc" },
-    include: {
-      author: true,
-    },
-  })
+  const posts = await getPublishedPosts()
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -42,7 +36,7 @@ export default async function BlogsPage() {
                 <CardContent>
                   <div className="flex items-center text-sm text-gray-600">
                     <User className="w-4 h-4 mr-1" />
-                    {post.author.name}
+                    {post.authorEmail}
                   </div>
                 </CardContent>
               </Card>

@@ -1,40 +1,41 @@
 "use server"
 
 import { prisma, getPostsWithAuthors, getPublishedPosts } from "@/lib/database"
+import { getServerUser } from "@/lib/auth-server"
 import { revalidatePath } from "next/cache"
 
 export async function createPost(formData: FormData) {
   try {
+    // Get current authenticated user
+    const { user, error: authError } = await getServerUser()
+    
+    console.log('🔍 Debug - Auth check:', { 
+      hasUser: !!user, 
+      userEmail: user?.email, 
+      error: authError?.message 
+    })
+    
+    if (authError || !user) {
+      console.log('❌ Auth failed:', authError?.message || 'No user found')
+      return { success: false, error: "Authentication required" }
+    }
+
     const title = formData.get("title") as string
     const content = formData.get("content") as string
-    const authorName = formData.get("author") as string
     const published = formData.get("published") === "on"
 
-    if (!title || !content || !authorName) {
-      return { success: false, error: "All fields are required" }
+    if (!title || !content) {
+      return { success: false, error: "Title and content are required" }
     }
 
-    // Find or create author
-    let author = await prisma.user.findFirst({
-      where: { name: authorName },
-    })
-
-    if (!author) {
-      author = await prisma.user.create({
-        data: {
-          name: authorName,
-          email: `${authorName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-        },
-      })
-    }
-
-    // Create the post
+    // Create the post with authenticated user info
     await prisma.post.create({
       data: {
         title,
         content,
         published,
-        authorId: author.id,
+        authorId: user.id,
+        authorEmail: user.email || 'unknown@example.com',
       },
     })
 
@@ -66,17 +67,34 @@ export async function getPublishedPostsAction() {
 
 export async function updatePost(id: number, data: { title?: string; content?: string; published?: boolean }) {
   try {
+    // Get current authenticated user
+    const { user, error: authError } = await getServerUser()
+    
+    if (authError || !user) {
+      return { success: false, error: "Authentication required" }
+    }
+
+    // Check if user owns the post
+    const existingPost = await prisma.post.findUnique({
+      where: { id }
+    })
+
+    if (!existingPost || existingPost.authorId !== user.id) {
+      return { success: false, error: "Not authorized to edit this post" }
+    }
+
     const updatedPost = await prisma.post.update({
       where: { id },
       data,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        published: true,
+        authorId: true,
+        authorEmail: true,
+        createdAt: true,
+        updatedAt: true,
       },
     })
 
@@ -90,6 +108,22 @@ export async function updatePost(id: number, data: { title?: string; content?: s
 
 export async function deletePost(id: number) {
   try {
+    // Get current authenticated user
+    const { user, error: authError } = await getServerUser()
+    
+    if (authError || !user) {
+      return { success: false, error: "Authentication required" }
+    }
+
+    // Check if user owns the post
+    const existingPost = await prisma.post.findUnique({
+      where: { id }
+    })
+
+    if (!existingPost || existingPost.authorId !== user.id) {
+      return { success: false, error: "Not authorized to delete this post" }
+    }
+
     await prisma.post.delete({
       where: { id },
     })

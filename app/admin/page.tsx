@@ -10,10 +10,14 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { createPost } from "@/app/actions/posts"
+import { ProtectedRoute } from "@/components/auth/protected-route"
+import { useAuth } from "@/lib/auth"
+import { EnvCheck } from "@/components/auth/env-check"
 
 export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const { user, signOut } = useAuth()
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)
@@ -48,13 +52,22 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Panel</h1>
-          <p className="text-gray-600">Create and manage blog posts</p>
-        </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Panel</h1>
+            <p className="text-gray-600">Create and manage blog posts</p>
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <p className="text-sm text-gray-500">Signed in as: {user?.email}</p>
+              <Button variant="outline" size="sm" onClick={signOut}>
+                Sign Out
+              </Button>
+            </div>
+          </div>
 
+        <EnvCheck />
+        
         <Card>
           <CardHeader>
             <CardTitle>Create New Blog Post</CardTitle>
@@ -78,10 +91,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="author">Author Name</Label>
-                <Input id="author" name="author" placeholder="Enter author name" required />
-              </div>
+
 
               <div className="flex items-center space-x-2">
                 <Switch id="published" name="published" />
@@ -97,5 +107,6 @@ export default function AdminPage() {
       </div>
       <Toaster />
     </div>
+    </ProtectedRoute>
   )
 }

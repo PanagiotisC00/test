@@ -92,6 +92,11 @@ export async function getUserByEmail(email: string) {
 // Health check function
 export async function checkDatabaseConnection() {
   try {
+    // Check if Prisma client is available
+    if (!prisma) {
+      return { status: 'error', error: 'Prisma client not available' }
+    }
+    
     await prisma.$queryRaw`SELECT 1`
     return { status: 'connected', timestamp: new Date().toISOString() }
   } catch (error) {
